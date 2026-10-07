@@ -47,7 +47,9 @@ export function attachLiveProxy(server) {
       const setup = {
         setup: {
           model: DEFAULT_MODEL,
-          responseModalities: ["AUDIO"],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+          },
           systemInstruction: {
             parts: [{ text: SYSTEM_INSTRUCTION }],
           },
