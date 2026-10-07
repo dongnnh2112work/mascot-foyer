@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+.venv
+*.md
+.DS_Store
+.vercel
+.railway
+.fly
+agent-transcripts
+terminals
+*.log

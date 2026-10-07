@@ -4,3 +4,6 @@ logs/*.jsonl
 .env
 node_modules/
 .next/
+.vercel
+.env*
+tsconfig.tsbuildinfo

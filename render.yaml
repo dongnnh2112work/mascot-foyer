@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: mascot-interactive
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: "0.0.0.0"
+      - key: GEMINI_API_KEY
+        sync: false
