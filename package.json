@@ -1,0 +1,23 @@
+{
+  "name": "mascot-foyer-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/next-server.mjs",
+    "build": "next build",
+    "start": "NODE_ENV=production node server/next-server.mjs",
+    "ingest": "node scripts/ingest-sheet.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,6 @@
+logs/*.jsonl
+.DS_Store
+.venv/
+.env
+node_modules/
+.next/

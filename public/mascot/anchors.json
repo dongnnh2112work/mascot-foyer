@@ -1,0 +1,23 @@
+{
+  "canvas": {
+    "width": 256,
+    "height": 254
+  },
+  "mouth": {
+    "x": 142,
+    "y": 132
+  },
+  "eyes": {
+    "x": 142,
+    "y": 102
+  },
+  "sheets": {
+    "cell": {
+      "width": 256,
+      "height": 254
+    },
+    "columns": 4,
+    "rows": 1,
+    "frameMs": 140
+  }
+}

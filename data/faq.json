@@ -1,0 +1,18 @@
+[
+  {
+    "id": "faq_gio_mo_cua",
+    "question_variants": ["mấy giờ mở cửa", "khi nào mở cửa", "mấy giờ bắt đầu"],
+    "text": "Đang phát file giọng mẫu Giọng thỏ 7 màu. Chưa có câu FAQ thu riêng cho giờ mở cửa, và chưa có phụ đề SRT.",
+    "audio": "giong-tho-7-mau.mp3",
+    "motion": "wave_hello",
+    "duration": 10.77
+  },
+  {
+    "id": "faq_chao_hoi",
+    "question_variants": ["xin chào", "chào thỏ", "chào bạn"],
+    "text": "Cùng file giọng mẫu, gắn motion happy. Chưa có audio chào hỏi riêng và chưa có phụ đề SRT.",
+    "audio": "giong-tho-7-mau.mp3",
+    "motion": "happy",
+    "duration": 10.77
+  }
+]

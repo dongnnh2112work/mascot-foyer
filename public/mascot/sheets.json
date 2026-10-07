@@ -1,0 +1,15 @@
+{
+  "thinking": {
+    "cell": {
+      "width": 256,
+      "height": 256
+    },
+    "columns": 4,
+    "rows": 4,
+    "frameCount": 16,
+    "frameMs": 55,
+    "chromaKey": "#00FF00",
+    "order": "left-to-right, top-to-bottom"
+  },
+  "defaultClip": "thinking"
+}

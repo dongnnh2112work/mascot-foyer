@@ -1,0 +1,202 @@
+{
+  "canvas": {
+    "width": 256,
+    "height": 256
+  },
+  "faceLayers": false,
+  "layers": {
+    "body": "mascot/body.png"
+  },
+  "clips": {
+    "thinking": [
+      {
+        "src": "mascot/clips/thinking/f01.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f02.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f03.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f04.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f05.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f06.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f07.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f08.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f09.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f10.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f11.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f12.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f13.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f14.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f15.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f16.png",
+        "ms": 55
+      }
+    ],
+    "idle": [
+      {
+        "src": "mascot/clips/thinking/f01.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f02.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f03.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f04.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f05.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f06.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f07.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f08.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f09.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f10.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f11.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f12.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f13.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f14.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f15.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f16.png",
+        "ms": 55
+      }
+    ],
+    "wave_hello": [
+      {
+        "src": "mascot/clips/thinking/f01.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f03.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f05.png",
+        "ms": 55
+      },
+      {
+        "src": "mascot/clips/thinking/f07.png",
+        "ms": 55
+      }
+    ],
+    "happy": [
+      {
+        "src": "mascot/clips/thinking/f05.png",
+        "ms": 50
+      },
+      {
+        "src": "mascot/clips/thinking/f09.png",
+        "ms": 50
+      },
+      {
+        "src": "mascot/clips/thinking/f13.png",
+        "ms": 50
+      },
+      {
+        "src": "mascot/clips/thinking/f16.png",
+        "ms": 50
+      }
+    ],
+    "special": [
+      {
+        "src": "mascot/clips/thinking/f01.png",
+        "ms": 45
+      },
+      {
+        "src": "mascot/clips/thinking/f08.png",
+        "ms": 45
+      },
+      {
+        "src": "mascot/clips/thinking/f16.png",
+        "ms": 45
+      },
+      {
+        "src": "mascot/clips/thinking/f08.png",
+        "ms": 45
+      }
+    ]
+  },
+  "defaultClip": "thinking",
+  "sourceNotes": {
+    "thinkingSheet": "1024x1024 green-screen 4x4 \u2192 keyed + sliced to thinking/f01..f16 @ 55ms (~0.88s loop)"
+  }
+}
