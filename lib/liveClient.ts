@@ -1,7 +1,7 @@
 const INPUT_RATE = 16000;
 const OUTPUT_RATE = 24000;
 
-function floatTo16BitPCM(float32) {
+function floatTo16BitPCM(float32: Float32Array) {
   const out = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
     const s = Math.max(-1, Math.min(1, float32[i]));
@@ -10,7 +10,7 @@ function floatTo16BitPCM(float32) {
   return out;
 }
 
-function downsample(float32, fromRate, toRate) {
+function downsample(float32: Float32Array, fromRate: number, toRate: number) {
   if (fromRate === toRate) return float32;
   const ratio = fromRate / toRate;
   const newLen = Math.floor(float32.length / ratio);
@@ -22,44 +22,74 @@ function downsample(float32, fromRate, toRate) {
   return result;
 }
 
-function pcm16ToBase64(int16) {
+function pcm16ToBase64(int16: Int16Array) {
   const bytes = new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength);
   let binary = "";
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
 
-function base64ToInt16(b64) {
+function base64ToInt16(b64: string) {
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return new Int16Array(bytes.buffer);
 }
 
-/**
- * Browser client for Gemini Live via local WS proxy.
- * Emits: ready, state, transcript, error, latency, audioStart, audioEnd, interrupted
- */
-export function createLiveClient(handlers = {}) {
-  let ws = null;
-  let mediaStream = null;
-  let audioContext = null;
-  let processor = null;
-  let source = null;
-  let playContext = null;
+function rms(float32: Float32Array) {
+  let sum = 0;
+  for (let i = 0; i < float32.length; i++) sum += float32[i] * float32[i];
+  return Math.sqrt(sum / Math.max(1, float32.length));
+}
+
+export function createLiveClient(handlers: Record<string, any> = {}) {
+  let ws: WebSocket | null = null;
+  let mediaStream: MediaStream | null = null;
+  let audioContext: AudioContext | null = null;
+  let processor: ScriptProcessorNode | null = null;
+  let source: MediaStreamAudioSourceNode | null = null;
+  let playContext: AudioContext | null = null;
   let nextPlayTime = 0;
   let active = false;
+  let ready = false;
+  let pttHeld = false;
   let state = "idle";
   let turnStartedAt = 0;
   let firstAudioAt = 0;
+  let levelEmitAt = 0;
+  let resolveReady: (() => void) | null = null;
 
-  const emit = (name, payload) => {
+  const emit = (name: string, payload?: any) => {
     handlers[name]?.(payload);
   };
 
-  function setState(next) {
+  function setState(next: string) {
+    if (state === next) return;
     state = next;
     emit("state", next);
+    emitStatus();
+  }
+
+  function emitStatus(extraHint?: string) {
+    const hints: Record<string, string> = {
+      idle: "Chưa bắt đầu phiên.",
+      connecting: "Đang kết nối Gemini Live…",
+      listening: "Giữ nút “Giữ để nói”, nói xong thì thả tay.",
+      hearing: "Đang ghi âm — thả nút khi nói xong.",
+      thinking: "Đã thả nút — đang chờ Thỏ trả lời…",
+      speaking: "Thỏ đang nói — có thể giữ nút để nói đè.",
+      error: "Có lỗi — thử bắt đầu lại.",
+    };
+    emit("status", {
+      state,
+      pttHeld,
+      hint: extraHint || hints[state] || state,
+    });
+  }
+
+  function sendJson(obj: unknown) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(obj));
   }
 
   function stopPlaybackQueue() {
@@ -78,7 +108,7 @@ export function createLiveClient(handlers = {}) {
     return playContext;
   }
 
-  function playPcmChunk(int16) {
+  function playPcmChunk(int16: Int16Array) {
     const ctx = ensurePlayContext();
     const float32 = new Float32Array(int16.length);
     for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000;
@@ -87,7 +117,8 @@ export function createLiveClient(handlers = {}) {
     const node = ctx.createBufferSource();
     node.buffer = buffer;
     node.connect(ctx.destination);
-    const startAt = Math.max(ctx.currentTime + 0.02, nextPlayTime);
+    // Keep playout lead tiny so first audio starts ASAP.
+    const startAt = Math.max(ctx.currentTime + 0.005, nextPlayTime);
     node.start(startAt);
     nextPlayTime = startAt + buffer.duration;
     if (!firstAudioAt) {
@@ -97,16 +128,20 @@ export function createLiveClient(handlers = {}) {
     }
   }
 
-  function handleServerMessage(raw) {
-    let msg;
+  function handleServerMessage(raw: string) {
+    let msg: any;
     try {
       msg = JSON.parse(raw);
     } catch {
       return;
     }
 
-    if (msg.type === "ready") {
-      emit("ready", msg);
+    if (msg.type === "ready" || msg.setupComplete) {
+      ready = true;
+      if (msg.type === "ready") emit("ready", msg);
+      else emit("ready", { model: "Live" });
+      resolveReady?.();
+      resolveReady = null;
       setState("listening");
       return;
     }
@@ -123,14 +158,21 @@ export function createLiveClient(handlers = {}) {
       stopPlaybackQueue();
       firstAudioAt = 0;
       emit("interrupted");
-      setState("listening");
+      if (!pttHeld) setState("listening");
     }
 
-    if (content.inputTranscription?.text) {
-      emit("transcript", { role: "user", text: content.inputTranscription.text, partial: true });
+    const interim =
+      content.interimInputTranscription?.text || content.interimInputTranscription?.transcript || "";
+    const inputText =
+      content.inputTranscription?.text || content.inputTranscription?.transcript || interim;
+    if (inputText) {
+      emit("transcript", { role: "user", text: inputText, partial: true });
+      if (pttHeld) setState("hearing");
     }
-    if (content.outputTranscription?.text) {
-      emit("transcript", { role: "model", text: content.outputTranscription.text, partial: true });
+
+    const outputText = content.outputTranscription?.text || content.outputTranscription?.transcript;
+    if (outputText) {
+      emit("transcript", { role: "model", text: outputText, partial: true });
     }
 
     if (content.modelTurn?.parts) {
@@ -150,7 +192,7 @@ export function createLiveClient(handlers = {}) {
       emit("audioEnd");
       firstAudioAt = 0;
       turnStartedAt = performance.now();
-      setState("listening");
+      setState(pttHeld ? "hearing" : "listening");
     }
   }
 
@@ -162,23 +204,38 @@ export function createLiveClient(handlers = {}) {
         channelCount: 1,
       },
     });
-    audioContext = new AudioContext();
+    audioContext = new AudioContext({ sampleRate: INPUT_RATE });
+    if (audioContext.state === "suspended") await audioContext.resume();
     source = audioContext.createMediaStreamSource(mediaStream);
-    processor = audioContext.createScriptProcessor(4096, 1, 1);
+    // ~20–40ms frames at common rates (docs recommend small chunks for lower latency).
+    const bufferSize = audioContext.sampleRate >= 44100 ? 1024 : 512;
+    processor = audioContext.createScriptProcessor(bufferSize, 1, 1);
     processor.onaudioprocess = (event) => {
-      if (!active || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!active || !ready || !ws || ws.readyState !== WebSocket.OPEN) return;
       const input = event.inputBuffer.getChannelData(0);
-      const down = downsample(input, audioContext.sampleRate, INPUT_RATE);
-      const pcm = floatTo16BitPCM(down);
-      const payload = {
-        realtimeInput: {
-          audio: {
-            data: pcm16ToBase64(pcm),
-            mimeType: "audio/pcm;rate=16000",
+      const level = rms(input);
+      const now = performance.now();
+      if (now - levelEmitAt > 80) {
+        levelEmitAt = now;
+        emit("level", pttHeld ? level : 0);
+      }
+      if (!pttHeld) return;
+
+      const down = downsample(input, audioContext!.sampleRate, INPUT_RATE);
+      // Cap outbound chunk ~40ms @16k to keep the Live socket responsive.
+      const maxSamples = 640;
+      for (let offset = 0; offset < down.length; offset += maxSamples) {
+        const slice = down.subarray(offset, Math.min(down.length, offset + maxSamples));
+        const pcm = floatTo16BitPCM(slice);
+        sendJson({
+          realtimeInput: {
+            audio: {
+              data: pcm16ToBase64(pcm),
+              mimeType: "audio/pcm;rate=16000",
+            },
           },
-        },
-      };
-      ws.send(JSON.stringify(payload));
+        });
+      }
     };
     const mute = audioContext.createGain();
     mute.gain.value = 0;
@@ -192,17 +249,19 @@ export function createLiveClient(handlers = {}) {
     setState("connecting");
     turnStartedAt = performance.now();
     firstAudioAt = 0;
+    ready = false;
+    pttHeld = false;
 
     const proto = location.protocol === "https:" ? "wss" : "ws";
     ws = new WebSocket(`${proto}://${location.host}/ws/live`);
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("WS timeout")), 12000);
-      ws.onopen = () => {
+      ws!.onopen = () => {
         clearTimeout(timer);
         resolve();
       };
-      ws.onerror = () => {
+      ws!.onerror = () => {
         clearTimeout(timer);
         reject(new Error("Không kết nối được /ws/live"));
       };
@@ -218,9 +277,22 @@ export function createLiveClient(handlers = {}) {
       }
     };
 
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Gemini setup timeout")), 15000);
+      if (ready) {
+        clearTimeout(timer);
+        resolve();
+        return;
+      }
+      resolveReady = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+
     try {
       await startMic();
-    } catch (err) {
+    } catch (err: any) {
       ws.close();
       setState("error");
       emit("error", err.message || "Không mở được micro");
@@ -231,8 +303,62 @@ export function createLiveClient(handlers = {}) {
     setState("listening");
   }
 
+  /** Hold to talk — start streaming mic audio. */
+  function beginTalk() {
+    if (!active || !ready || pttHeld) return;
+    pttHeld = true;
+    turnStartedAt = performance.now();
+    firstAudioAt = 0;
+    // Barge-in: stop current reply when user starts speaking again.
+    stopPlaybackQueue();
+    setState("hearing");
+    emitStatus();
+  }
+
+  /** Release — stop mic stream and finalize turn immediately (hybrid VAD). */
+  function endTalk() {
+    if (!pttHeld) return;
+    pttHeld = false;
+    emit("level", 0);
+    // Bypass server silence wait — docs: audioStreamEnd finalizes the turn ASAP.
+    sendJson({ realtimeInput: { audioStreamEnd: true } });
+    setState("thinking");
+    emitStatus("Đã thả nút — đang chờ audio đầu tiên từ Gemini…");
+  }
+
+  function sendText(text: string) {
+    if (!active || !ready || !ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Chưa sẵn sàng — đợi trạng thái sẵn sàng rồi thử lại.");
+    }
+    const cleaned = text.trim();
+    if (!cleaned) return;
+    if (pttHeld) endTalk();
+    turnStartedAt = performance.now();
+    firstAudioAt = 0;
+    emit("transcript", { role: "user", text: cleaned, partial: false });
+    setState("thinking");
+    sendJson({
+      clientContent: {
+        turns: [{ role: "user", parts: [{ text: cleaned }] }],
+        turnComplete: true,
+      },
+    });
+  }
+
+  function interrupt() {
+    stopPlaybackQueue();
+    firstAudioAt = 0;
+    emit("interrupted");
+    if (active && !pttHeld) setState("listening");
+  }
+
   function stop() {
+    if (pttHeld) {
+      pttHeld = false;
+      sendJson({ realtimeInput: { audioStreamEnd: true } });
+    }
     active = false;
+    ready = false;
     setState("idle");
     try {
       processor?.disconnect();
@@ -256,6 +382,11 @@ export function createLiveClient(handlers = {}) {
   return {
     start,
     stop,
+    interrupt,
+    sendText,
+    beginTalk,
+    endTalk,
+    isPttHeld: () => pttHeld,
     getState: () => state,
     isActive: () => active,
   };

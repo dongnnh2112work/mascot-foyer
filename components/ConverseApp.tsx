@@ -8,8 +8,10 @@ import "@/app/converse/converse.css";
 const STATE_LABEL: Record<string, string> = {
   idle: "Tắt",
   connecting: "Đang nối…",
-  listening: "Đang nghe",
-  speaking: "Đang nói",
+  listening: "Sẵn sàng",
+  hearing: "Đang ghi âm",
+  thinking: "Đang chờ trả lời",
+  speaking: "Thỏ đang nói",
   error: "Lỗi",
 };
 
@@ -18,18 +20,28 @@ type Bubble = { role: "user" | "model"; text: string };
 export default function ConverseApp() {
   const clientRef = useRef<ReturnType<typeof createLiveClient> | null>(null);
   const draftRef = useRef<{ user?: string; model?: string }>({});
+  const holdingRef = useRef(false);
   const [liveState, setLiveState] = useState("idle");
+  const [hint, setHint] = useState("Bấm “Mở phiên”, rồi giữ nút để nói.");
+  const [holding, setHolding] = useState(false);
+  const [level, setLevel] = useState(0);
   const [notice, setNotice] = useState("");
-  const [latency, setLatency] = useState("Chưa có lượt nào. Cần GEMINI_API_KEY trong .env");
+  const [latency, setLatency] = useState("Chưa có lượt nào.");
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     clientRef.current = createLiveClient({
       state: setLiveState,
-      ready(info) {
-        setNotice(`Sẵn sàng · ${info.model || "Live"}`);
+      status({ hint: nextHint, pttHeld }: { hint: string; pttHeld: boolean }) {
+        setHint(nextHint);
+        setHolding(pttHeld);
       },
-      transcript({ role, text }) {
+      level: setLevel,
+      ready(info: { model?: string }) {
+        setNotice(`Sẵn sàng · ${info.model || "Live"} — giữ nút để nói`);
+      },
+      transcript({ role, text }: { role: "user" | "model"; text: string }) {
         if (!text?.trim()) return;
         draftRef.current[role] = text;
         setBubbles((prev) => {
@@ -44,9 +56,9 @@ export default function ConverseApp() {
         draftRef.current = {};
       },
       interrupted() {
-        setNotice("Đã ngắt (barge-in)");
+        setNotice("Đã ngắt trả lời — phiên vẫn mở.");
       },
-      latency(info) {
+      latency(info: { audio_start_ms?: number | null; total_ms: number }) {
         setLatency(`audio_start ${info.audio_start_ms ?? "—"} ms · total ${info.total_ms} ms`);
         void fetch("/api/log", {
           method: "POST",
@@ -54,7 +66,7 @@ export default function ConverseApp() {
           body: JSON.stringify({ ...info, at: new Date().toISOString(), source: "live" }),
         });
       },
-      error(message) {
+      error(message: string) {
         setNotice(message);
       },
     });
@@ -75,8 +87,33 @@ export default function ConverseApp() {
     }
   }
 
+  function onPttDown(e: React.PointerEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    if (!sessionOpen || holdingRef.current) return;
+    holdingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    clientRef.current?.beginTalk();
+    setHolding(true);
+  }
+
+  function onPttUp(e: React.PointerEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    if (!holdingRef.current) return;
+    holdingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    clientRef.current?.endTalk();
+    setHolding(false);
+  }
+
+  const sessionOpen = liveState !== "idle" && liveState !== "error";
+  const meterPct = Math.min(100, Math.round(level * 400));
+
   return (
-    <div className="page" data-state={liveState}>
+    <div className="page" data-state={liveState} data-holding={holding ? "1" : "0"}>
       <header>
         <p className="eyebrow">Scope 1 · Conversation</p>
         <h1>Gemini Live</h1>
@@ -86,7 +123,17 @@ export default function ConverseApp() {
         </nav>
       </header>
 
+      <p className="hint" id="hint">
+        {hint}
+      </p>
+      <div className="meter" aria-hidden="true">
+        <div className="meter-fill" style={{ width: `${meterPct}%` }} />
+      </div>
+
       <div id="transcript" aria-live="polite">
+        {bubbles.length === 0 && sessionOpen ? (
+          <p className="empty">Giữ nút bên dưới để hỏi — thả tay khi nói xong.</p>
+        ) : null}
         {bubbles.map((b, i) => (
           <div key={`${b.role}-${i}`} className={`bubble ${b.role}`}>
             <span className="role">{b.role === "user" ? "Bạn" : "Thỏ"}</span>
@@ -95,20 +142,68 @@ export default function ConverseApp() {
         ))}
       </div>
 
+      <button
+        type="button"
+        className={`ptt ${holding ? "is-holding" : ""}`}
+        disabled={!sessionOpen}
+        onPointerDown={onPttDown}
+        onPointerUp={onPttUp}
+        onPointerCancel={onPttUp}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {holding ? "Đang ghi… thả để gửi" : "Giữ để nói"}
+      </button>
+
+      <form
+        className="text-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!sessionOpen || !draft.trim()) return;
+          try {
+            clientRef.current?.sendText(draft);
+            setDraft("");
+            setNotice("Đã gửi text → Gemini.");
+          } catch (err: any) {
+            setNotice(err.message || String(err));
+          }
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Hoặc gõ: Xin chào"
+          disabled={!sessionOpen}
+        />
+        <button type="submit" disabled={!sessionOpen || !draft.trim()}>
+          Gửi text
+        </button>
+      </form>
+
       <div className="controls">
-        <button type="button" disabled={liveState !== "idle" && liveState !== "error"} onClick={onStart}>
-          Bắt đầu nói
+        <button type="button" disabled={sessionOpen} onClick={onStart}>
+          Mở phiên
+        </button>
+        <button
+          type="button"
+          className="secondary"
+          disabled={!sessionOpen}
+          onClick={() => clientRef.current?.interrupt()}
+        >
+          Ngắt trả lời
         </button>
         <button
           type="button"
           className="secondary"
           disabled={liveState === "idle"}
           onClick={() => {
+            holdingRef.current = false;
             clientRef.current?.stop();
-            setNotice("Đã dừng phiên.");
+            setNotice("Đã kết thúc phiên.");
+            setHolding(false);
+            setLevel(0);
           }}
         >
-          Dừng
+          Kết thúc phiên
         </button>
       </div>
       <p id="notice">{notice}</p>

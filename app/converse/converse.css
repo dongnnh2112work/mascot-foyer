@@ -41,9 +41,26 @@ header {
 h1 { margin: 0; font-size: 28px; font-family: Georgia, "Iowan Old Style", serif; font-weight: 600; }
 #state { margin: 0 0 0 auto; color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 .page[data-state="listening"] #state { color: var(--ok); }
+.page[data-state="hearing"] #state { color: #7dd3fc; }
+.page[data-state="thinking"] #state { color: var(--amber); }
 .page[data-state="speaking"] #state { color: var(--amber); }
 .page[data-state="error"] #state,
 .page[data-state="connecting"] #state { color: var(--warn); }
+
+.hint { margin: 0; color: var(--muted); font-size: 14px; }
+.empty { margin: auto; color: var(--muted); font-size: 14px; text-align: center; max-width: 28em; }
+.meter {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #6bcf8e, #7dd3fc);
+  transition: width 80ms linear;
+}
 
 nav a { color: var(--line); font-size: 13px; }
 
@@ -70,6 +87,43 @@ nav a { color: var(--line); font-size: 13px; }
 .bubble.user { align-self: flex-end; background: #2a3540; }
 .bubble.model { align-self: flex-start; background: #243028; border: 1px solid rgba(107, 207, 142, 0.25); }
 .bubble .role { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.ptt {
+  width: 100%;
+  min-height: 72px;
+  border-radius: 18px !important;
+  font-size: 18px !important;
+  letter-spacing: 0.02em;
+  touch-action: none;
+  user-select: none;
+  background: #2a6f4e !important;
+  color: #f4fff8 !important;
+  border: 1px solid rgba(107, 207, 142, 0.45) !important;
+}
+.ptt.is-holding {
+  background: #e25b45 !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(0.99);
+}
+.ptt:disabled {
+  opacity: 0.4;
+}
+
+.text-row {
+  display: flex;
+  gap: 8px;
+}
+.text-row input {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 184, 150, 0.35);
+  background: #12181e;
+  color: var(--ink);
+  padding: 10px 12px;
+  font: inherit;
+}
+.text-row input:disabled { opacity: 0.5; }
 
 .controls {
   display: flex;

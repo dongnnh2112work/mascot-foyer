@@ -42,9 +42,45 @@ header {
 h1 { margin: 0; font-family: Georgia, "Iowan Old Style", serif; font-size: 30px; font-weight: 600; }
 #state { margin: 0; color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 .page[data-state="listening"] #state { color: var(--ok); }
+.page[data-state="hearing"] #state { color: #7dd3fc; }
+.page[data-state="thinking"] #state { color: var(--amber); }
 .page[data-state="speaking"] #state { color: var(--amber); }
 .page[data-state="error"] #state,
 .page[data-state="connecting"] #state { color: var(--warn); }
+
+.hint { margin: 0; color: var(--muted); font-size: 14px; }
+.empty { margin: 8px auto; color: var(--muted); font-size: 13px; text-align: center; }
+.meter {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #6bcf8e, #7dd3fc);
+  transition: width 80ms linear;
+}
+.ptt {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid rgba(107, 207, 142, 0.45);
+  border-radius: 16px;
+  background: #2a6f4e;
+  color: #f4fff8;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.ptt.is-holding {
+  background: #e25b45;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.ptt:disabled { opacity: 0.4; cursor: not-allowed; }
 
 nav { margin-left: auto; display: flex; gap: 12px; }
 nav a { color: var(--line); font-size: 13px; }
